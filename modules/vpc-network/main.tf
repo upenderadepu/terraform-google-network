@@ -1,7 +1,7 @@
 terraform {
-  # This module is now only being tested with Terraform 0.13.x. However, to make upgrading easier, we are setting
+  # This module is now only being tested with Terraform 0.14.x. However, to make upgrading easier, we are setting
   # 0.12.26 as the minimum version, as that version added support for required_providers with source URLs, making it
-  # forwards compatible with 0.13.x code.
+  # forwards compatible with 0.14.x code.
   required_version = ">= 0.12.26"
 }
 
@@ -47,7 +47,7 @@ resource "google_compute_subnetwork" "vpc_subnetwork_public" {
   ip_cidr_range            = cidrsubnet(var.cidr_block, var.cidr_subnetwork_width_delta, 0)
 
   secondary_ip_range {
-    range_name = "public-services"
+    range_name = var.public_subnetwork_secondary_range_name
     ip_cidr_range = cidrsubnet(
       var.secondary_cidr_block,
       var.secondary_cidr_subnetwork_width_delta,
@@ -55,8 +55,17 @@ resource "google_compute_subnetwork" "vpc_subnetwork_public" {
     )
   }
 
+  secondary_ip_range {
+    range_name = var.public_services_secondary_range_name
+    ip_cidr_range = var.public_services_secondary_cidr_block != null ? var.public_services_secondary_cidr_block : cidrsubnet(
+      var.secondary_cidr_block,
+      var.secondary_cidr_subnetwork_width_delta,
+      1 * (2 + var.secondary_cidr_subnetwork_spacing)
+    )
+  }
+
   dynamic "log_config" {
-    for_each = var.log_config == null ? [] : list(var.log_config)
+    for_each = var.log_config == null ? [] : tolist([var.log_config])
 
     content {
       aggregation_interval = var.log_config.aggregation_interval
@@ -104,7 +113,7 @@ resource "google_compute_subnetwork" "vpc_subnetwork_private" {
 
   secondary_ip_range {
     range_name = "private-services"
-    ip_cidr_range = cidrsubnet(
+    ip_cidr_range = var.private_services_secondary_cidr_block != null ? var.private_services_secondary_cidr_block : cidrsubnet(
       var.secondary_cidr_block,
       var.secondary_cidr_subnetwork_width_delta,
       1 * (1 + var.secondary_cidr_subnetwork_spacing)
@@ -112,7 +121,7 @@ resource "google_compute_subnetwork" "vpc_subnetwork_private" {
   }
 
   dynamic "log_config" {
-    for_each = var.log_config == null ? [] : list(var.log_config)
+    for_each = var.log_config == null ? [] : tolist([var.log_config])
 
     content {
       aggregation_interval = var.log_config.aggregation_interval
